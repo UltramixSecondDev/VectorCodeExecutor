@@ -1,0 +1,834 @@
+-- VectorCode v1.1
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Prevent duplicates
+local existingIDE = playerGui:FindFirstChild("VectorCode")
+if existingIDE then
+    existingIDE:Destroy()
+end
+
+local existingOutput = playerGui:FindFirstChild("VectorOutput")
+if existingOutput then
+    existingOutput:Destroy()
+end
+
+-- Color Palette
+local colors = {
+    bgMain = Color3.fromRGB(24, 24, 26),
+    bgPanel = Color3.fromRGB(20, 20, 22),
+    bgSub = Color3.fromRGB(18, 18, 20),
+    border = Color3.fromRGB(45, 45, 50),
+    borderSub = Color3.fromRGB(35, 35, 40),
+    textWhite = Color3.fromRGB(220, 220, 230),
+    textGray = Color3.fromRGB(150, 150, 160),
+    accent = Color3.fromRGB(130, 180, 255),
+    selectionBlue = Color3.fromRGB(40, 100, 180)
+}
+
+-- Syntax Colors
+local SyntaxColors = {
+    Text            = Color3.fromRGB(204, 204, 204),
+    Operator        = Color3.fromRGB(204, 204, 204),
+    Number          = Color3.fromRGB(255, 198, 0),
+    String          = Color3.fromRGB(173, 241, 149),
+    Comment         = Color3.fromRGB(102, 102, 102),
+    Keyword         = Color3.fromRGB(248, 109, 124),
+    BuiltIn         = Color3.fromRGB(132, 214, 247),
+    LocalMethod     = Color3.fromRGB(253, 251, 172),
+    LocalProperty   = Color3.fromRGB(97, 161, 241),
+    Nil             = Color3.fromRGB(255, 198, 0),
+    Bool            = Color3.fromRGB(255, 198, 0),
+    Function        = Color3.fromRGB(248, 109, 124),
+    Local           = Color3.fromRGB(248, 109, 124),
+    Self            = Color3.fromRGB(248, 109, 124),
+    FunctionName    = Color3.fromRGB(253, 251, 172),
+    Bracket         = Color3.fromRGB(204, 204, 204),
+}
+
+-- Syntax Dictionaries
+local Keywords = {
+    ["and"] = true, ["break"] = true, ["do"] = true, ["else"] = true, ["elseif"] = true, ["end"] = true,
+    ["for"] = true, ["function"] = true, ["if"] = true, ["in"] = true, ["local"] = true,
+    ["not"] = true, ["or"] = true, ["repeat"] = true, ["return"] = true, ["then"] = true,
+    ["until"] = true, ["while"] = true
+}
+
+local SpecialMethods = {
+    ["WaitForChild"] = true, ["FindFirstChild"] = true, ["GetService"] = true, ["Destroy"] = true,
+    ["Clone"] = true, ["IsA"] = true, ["ClearAllChildren"] = true, ["GetChildren"] = true,
+    ["GetDescendants"] = true, ["Connect"] = true, ["Disconnect"] = true, ["Fire"] = true,
+    ["Invoke"] = true, ["rgb"] = true, ["FireServer"] = true, ["request"] = true, ["call"] = true,
+    ["decompile"] = true, ["loadfile"] = true, ["writefile"] = true, ["readfile"] = true,
+    ["appendfile"] = true, ["isexecutorclosure"] = true, ["isfile"] = true, ["delfile"] = true, ["crypt"] = true,
+}
+
+local BuiltIns = {
+    ["game"] = true, ["Players"] = true, ["TweenService"] = true, ["ScreenGui"] = true,
+    ["Instance"] = true, ["UDim2"] = true, ["Vector2"] = true, ["Vector3"] = true,
+    ["Color3"] = true, ["Enum"] = true, ["loadstring"] = true, ["warn"] = true,
+    ["pcall"] = true, ["print"] = true, ["UDim"] = true, ["delay"] = true,
+    ["require"] = true, ["spawn"] = true, ["tick"] = true, ["getfenv"] = true,
+    ["workspace"] = true, ["setfenv"] = true, ["getgenv"] = true, ["script"] = true,
+    ["string"] = true, ["pairs"] = true, ["type"] = true, ["math"] = true,
+    ["tonumber"] = true, ["tostring"] = true, ["CFrame"] = true, ["BrickColor"] = true,
+    ["table"] = true, ["Random"] = true, ["Ray"] = true, ["xpcall"] = true,
+    ["coroutine"] = true, ["_G"] = true, ["_VERSION"] = true, ["debug"] = true,
+    ["Axes"] = true, ["assert"] = true, ["error"] = true, ["ipairs"] = true,
+    ["rawequal"] = true, ["rawget"] = true, ["rawset"] = true, ["select"] = true,
+    ["ColorSequence"] = true, ["ColorSequenceKeypoint"] = true, ["bit32"] = true,
+    ["newproxy"] = true, ["os"] = true, ["Faces"] = true,
+}
+
+-- Custom font provided
+local customFont = Font.new("rbxassetid://12187371840")
+
+-- Main ScreenGui
+local gui = Instance.new("ScreenGui", playerGui)
+gui.Name = "VectorCode"
+gui.ResetOnSpawn = false
+
+----------------------------------------------------------------
+-- MAIN FRAME
+----------------------------------------------------------------
+local mainFrame = Instance.new("Frame", gui)
+mainFrame.Size = UDim2.new(0, 950, 0, 520)
+mainFrame.Position = UDim2.new(0.5, -475, 0.5, -260)
+mainFrame.BackgroundColor3 = colors.bgMain
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.BorderSizePixel = 1
+mainFrame.BorderColor3 = colors.border
+
+----------------------------------------------------------------
+-- 1. TITLEBAR
+----------------------------------------------------------------
+local titleBar = Instance.new("Frame", mainFrame)
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
+titleBar.BorderSizePixel = 0
+
+local explorerLogo = Instance.new("ImageButton", titleBar)
+explorerLogo.Size = UDim2.new(0, 18, 0, 18)
+explorerLogo.Position = UDim2.new(0, 10, 0, 6)
+explorerLogo.BackgroundTransparency = 1
+explorerLogo.Image = "rbxassetid://116358121137149"
+explorerLogo.ImageColor3 = colors.textWhite
+
+local titleLabel = Instance.new("TextLabel", titleBar)
+titleLabel.Size = UDim2.new(1, -50, 1, 0)
+titleLabel.Position = UDim2.new(0, 36, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "VectorCode Executor"
+titleLabel.TextColor3 = colors.textWhite
+titleLabel.FontFace = customFont
+titleLabel.TextSize = 12
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local minimizeBtn = Instance.new("TextButton", titleBar)
+minimizeBtn.Size = UDim2.new(0, 30, 1, 0)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 0)
+minimizeBtn.BackgroundTransparency = 1
+minimizeBtn.Text = "—"
+minimizeBtn.TextColor3 = colors.textGray
+minimizeBtn.FontFace = customFont
+minimizeBtn.TextSize = 12
+
+----------------------------------------------------------------
+-- 2. MENUBAR
+----------------------------------------------------------------
+local menuBar = Instance.new("Frame", mainFrame)
+menuBar.Size = UDim2.new(1, 0, 0, 26)
+menuBar.Position = UDim2.new(0, 0, 0, 30)
+menuBar.BackgroundColor3 = colors.bgPanel
+menuBar.BorderSizePixel = 0
+
+local menuButtons = {"File", "Home", "View", "Tools"}
+for i, name in ipairs(menuButtons) do
+    local btn = Instance.new("TextButton", menuBar)
+    btn.Size = UDim2.new(0, 55, 1, 0)
+    btn.Position = UDim2.new(0, (i-1)*55 + 5, 0, 0)
+    btn.BackgroundTransparency = 1
+    btn.Text = name
+    btn.TextColor3 = colors.textGray
+    btn.FontFace = customFont
+    btn.TextSize = 11
+end
+
+----------------------------------------------------------------
+-- 3. TOOLBAR (Con el botón de consola agregado y espaciado dinámico)
+----------------------------------------------------------------
+local toolBar = Instance.new("Frame", mainFrame)
+toolBar.Size = UDim2.new(1, 0, 0, 36)
+toolBar.Position = UDim2.new(0, 0, 0, 56)
+toolBar.BackgroundColor3 = colors.bgMain
+toolBar.BorderSizePixel = 0
+
+local tools = {
+    {id = "rbxassetid://102329912260207", name = "Execute",     posX = 10},
+    {id = "rbxassetid://88424166600894",  name = "Copy",        posX = 44},
+    {id = "rbxassetid://93497552239309",  name = "Clear",       posX = 78},
+    {id = "rbxassetid://134726581365978", name = "FileBrowser", posX = 112},
+    {id = "rbxassetid://117508615209874", name = "Console",     posX = 146}
+}
+
+local actionButtons = {}
+for _, tool in ipairs(tools) do
+    local btn = Instance.new("ImageButton", toolBar)
+    btn.Size = UDim2.new(0, 22, 0, 22)
+    btn.Position = UDim2.new(0, tool.posX, 0.5, -11)
+    btn.BackgroundTransparency = 1
+    btn.Image = tool.id
+    btn.ImageColor3 = colors.textWhite
+    actionButtons[tool.name] = btn
+end
+
+----------------------------------------------------------------
+-- 4. LEFT PANEL (Hierarchical TreeView & Deep Search)
+----------------------------------------------------------------
+local leftPanel = Instance.new("Frame", mainFrame)
+leftPanel.Size = UDim2.new(0, 220, 1, -102)
+leftPanel.Position = UDim2.new(0, 10, 0, 96)
+leftPanel.BackgroundColor3 = colors.bgPanel
+leftPanel.BorderSizePixel = 1
+leftPanel.BorderColor3 = colors.borderSub
+
+local searchBox = Instance.new("TextBox", leftPanel)
+searchBox.Size = UDim2.new(1, -12, 0, 24)
+searchBox.Position = UDim2.new(0, 6, 0, 6)
+searchBox.BackgroundColor3 = colors.bgSub
+searchBox.BorderSizePixel = 1
+searchBox.BorderColor3 = colors.borderSub
+searchBox.PlaceholderText = "Search scripts or instances..."
+searchBox.PlaceholderColor3 = colors.textGray
+searchBox.Text = ""
+searchBox.TextColor3 = colors.textWhite
+searchBox.FontFace = customFont
+searchBox.TextSize = 11
+searchBox.ClearTextOnFocus = false
+
+local instanceScroll = Instance.new("ScrollingFrame", leftPanel)
+instanceScroll.Size = UDim2.new(1, -8, 1, -38)
+instanceScroll.Position = UDim2.new(0, 4, 0, 34)
+instanceScroll.BackgroundTransparency = 1
+instanceScroll.BorderSizePixel = 0
+instanceScroll.ScrollBarThickness = 3
+instanceScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+local instanceLayout = Instance.new("UIListLayout", instanceScroll)
+instanceLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local editorBox 
+local activeTargetScript = nil 
+local multiSelectEnabled = false
+local selectedScriptsForExport = {}
+local allNodeButtons = {}
+
+local function updateSelectionHighlight()
+    for btn, item in pairs(allNodeButtons) do
+        if item == activeTargetScript or table.find(selectedScriptsForExport, item) then
+            btn.BackgroundColor3 = colors.selectionBlue
+            btn.BackgroundTransparency = 0.2
+        else
+            btn.BackgroundColor3 = Color3.new(1, 1, 1)
+            btn.BackgroundTransparency = 1
+        end
+    end
+end
+
+local function renderTreeView()
+    for _, child in ipairs(instanceScroll:GetChildren()) do
+        if child:IsA("GuiObject") then child:Destroy() end
+    end
+    allNodeButtons = {}
+    
+    local filterText = searchBox.Text:lower()
+    local rootServices = {
+        game:GetService("Workspace"),
+        game:GetService("Players"),
+        game:GetService("ReplicatedStorage"),
+        game:GetService("ReplicatedFirst"),
+        game:GetService("StarterGui"),
+        game:GetService("StarterPack"),
+        game:GetService("Lighting")
+    }
+    
+    local function createNode(parentContainer, item, depth)
+        local matchesFilter = true
+        if filterText ~= "" then
+            local function checkDeepMatch(target)
+                if string.find(target.Name:lower(), filterText) then return true end
+                for _, desc in ipairs(target:GetChildren()) do
+                    if checkDeepMatch(desc) then return true end
+                end
+                return false
+            end
+            matchesFilter = checkDeepMatch(item)
+        end
+        
+        if not matchesFilter then return end
+        
+        local btn = Instance.new("TextButton", parentContainer)
+        btn.Size = UDim2.new(1, 0, 0, 22)
+        btn.BackgroundTransparency = 1
+        btn.Text = string.rep("    ", depth) .. "   " .. item.Name
+        btn.TextColor3 = colors.textWhite
+        btn.FontFace = customFont
+        btn.TextSize = 11
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        
+        allNodeButtons[btn] = item
+        
+        local icon = Instance.new("ImageLabel", btn)
+        icon.Size = UDim2.new(0, 14, 0, 14)
+        icon.Position = UDim2.new(0, (depth * 16) + 4, 0.5, -7)
+        icon.BackgroundTransparency = 1
+        icon.Image = "rbxassetid://127958936237605"
+        icon.ImageColor3 = colors.accent
+        
+        local childrenContainer = Instance.new("Frame", parentContainer)
+        childrenContainer.Size = UDim2.new(1, 0, 0, 0)
+        childrenContainer.BackgroundTransparency = 1
+        childrenContainer.Visible = false
+        
+        local subLayout = Instance.new("UIListLayout", childrenContainer)
+        subLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        
+        subLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            if childrenContainer.Visible then
+                childrenContainer.Size = UDim2.new(1, 0, 0, subLayout.AbsoluteContentSize.Y)
+            end
+        end)
+        
+        btn.MouseButton1Click:Connect(function()
+            if item:IsA("LocalScript") or item:IsA("ModuleScript") or item:IsA("Script") then
+                activeTargetScript = item
+                
+                if multiSelectEnabled then
+                    local foundIdx = table.find(selectedScriptsForExport, item)
+                    if foundIdx then
+                        table.remove(selectedScriptsForExport, foundIdx)
+                    else
+                        table.insert(selectedScriptsForExport, item)
+                    end
+                else
+                    selectedScriptsForExport = {item}
+                end
+                
+                updateSelectionHighlight()
+                
+                local success, sourceCode = pcall(function()
+                    return decompile(item)
+                end)
+                if success and sourceCode then
+                    editorBox.Text = sourceCode
+                else
+                    editorBox.Text = "-- [Error]: Could not decompile this script."
+                end
+            else
+                childrenContainer.Visible = not childrenContainer.Visible
+                if childrenContainer.Visible and #childrenContainer:GetChildren() <= 1 then
+                    for _, subChild in ipairs(item:GetChildren()) do
+                        pcall(function() createNode(childrenContainer, subChild, depth + 1) end)
+                    end
+                end
+                childrenContainer.Size = UDim2.new(1, 0, 0, subLayout.AbsoluteContentSize.Y)
+            end
+        end)
+    end
+    
+    for _, service in ipairs(rootServices) do
+        createNode(instanceScroll, service, 0)
+    end
+    updateSelectionHighlight()
+end
+
+renderTreeView()
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    renderTreeView()
+end)
+
+----------------------------------------------------------------
+-- 5. RIGHT CODE EDITOR & SYNTAX HIGHLIGHTER AREA
+----------------------------------------------------------------
+local editorMainContainer = Instance.new("Frame", mainFrame)
+editorMainContainer.Size = UDim2.new(1, -240, 1, -102)
+editorMainContainer.Position = UDim2.new(0, 235, 0, 96)
+editorMainContainer.BackgroundColor3 = colors.bgPanel
+editorMainContainer.BorderSizePixel = 1
+editorMainContainer.BorderColor3 = colors.borderSub
+editorMainContainer.ClipsDescendants = true
+
+local editorScroll = Instance.new("ScrollingFrame", editorMainContainer)
+editorScroll.Size = UDim2.new(1, -45, 1, 0)
+editorScroll.Position = UDim2.new(0, 45, 0, 0)
+editorScroll.BackgroundTransparency = 1
+editorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+editorScroll.ScrollBarThickness = 5
+editorScroll.BorderSizePixel = 0
+
+-- Container for colored RichText syntax lines & Indent Guides with ▶ indicators
+local highlightContainer = Instance.new("Frame", editorScroll)
+highlightContainer.Size = UDim2.new(1, 0, 1, 0)
+highlightContainer.BackgroundTransparency = 1
+
+local lineNumsContainer = Instance.new("Frame", editorMainContainer)
+lineNumsContainer.Size = UDim2.new(0, 45, 1, 0)
+lineNumsContainer.Position = UDim2.new(0, 0, 0, 0)
+lineNumsContainer.BackgroundColor3 = colors.bgSub
+lineNumsContainer.BorderSizePixel = 0
+lineNumsContainer.ClipsDescendants = true
+
+local lineNums = Instance.new("TextLabel", lineNumsContainer)
+lineNums.Size = UDim2.new(1, 0, 0, 10000)
+lineNums.Position = UDim2.new(0, 0, 0, 0)
+lineNums.BackgroundTransparency = 1
+lineNums.TextColor3 = colors.textGray
+lineNums.TextXAlignment = Enum.TextXAlignment.Center
+lineNums.TextYAlignment = Enum.TextYAlignment.Top
+lineNums.FontFace = customFont
+lineNums.TextSize = 12
+lineNums.Text = "1"
+
+editorBox = Instance.new("TextBox", editorScroll)
+editorBox.Size = UDim2.new(1, 0, 1, 0)
+editorBox.Position = UDim2.new(0, 0, 0, 0)
+editorBox.BackgroundTransparency = 1
+editorBox.ClearTextOnFocus = false
+editorBox.MultiLine = true
+editorBox.TextXAlignment = Enum.TextXAlignment.Left
+editorBox.TextYAlignment = Enum.TextYAlignment.Top
+editorBox.TextColor3 = Color3.new(1, 1, 1)
+editorBox.TextTransparency = 0.99 -- Invisible text over colored syntax layer
+editorBox.FontFace = customFont
+editorBox.TextSize = 12
+editorBox.Text = "-- VectorCode v2.7\n-- Select a LocalScript or ModuleScript from the explorer to decompile.\nprint('Ready!')"
+
+-- Syntax Highlighter Engine Logic
+local insideBlockComment = false
+
+local function tokenize(line)
+    local tokens = {}
+    local i = 1
+
+    if insideBlockComment then
+        local endPos = line:find("]]", 1, true)
+        if endPos then
+            table.insert(tokens, {line:sub(1, endPos + 1), "Comment"})
+            insideBlockComment = false
+            if endPos + 1 < #line then
+                local rest = line:sub(endPos + 2)
+                for _, t in ipairs(tokenize(rest)) do
+                    table.insert(tokens, t)
+                end
+            end
+        else
+            table.insert(tokens, {line, "Comment"})
+        end
+        return tokens
+    end
+
+    while i <= #line do
+        local c = line:sub(i, i)
+
+        if c == "-" and line:sub(i, i + 3) == "--[[" then
+            local endPos = line:find("]]", i + 4, true)
+            if endPos then
+                table.insert(tokens, {line:sub(i, endPos + 1), "Comment"})
+                i = endPos + 2
+            else
+                table.insert(tokens, {line:sub(i), "Comment"})
+                insideBlockComment = true
+                break
+            end
+        elseif c == "-" and line:sub(i, i + 1) == "--" then
+            table.insert(tokens, {line:sub(i), "Comment"})
+            break
+        elseif c == '"' or c == "'" then
+            local quote = c
+            local j = i + 1
+            while j <= #line do
+                if line:sub(j, j) == quote and line:sub(j - 1, j - 1) ~= "\\" then break end
+                j = j + 1
+            end
+            table.insert(tokens, {line:sub(i, j), "String"})
+            i = j
+        elseif c:match("%d") then
+            local j = i
+            while j <= #line and line:sub(j, j):match("[%d%.]") do
+                j = j + 1
+            end
+            table.insert(tokens, {line:sub(i, j - 1), "Number"})
+            i = j - 1
+        elseif line:sub(i, i + 3) == "true" then
+            table.insert(tokens, {"true", "Number"})
+            i = i + 3
+        elseif line:sub(i, i + 4) == "false" then
+            table.insert(tokens, {"false", "Number"})
+            i = i + 4
+        elseif line:sub(i, i + 2) == "nil" then
+            table.insert(tokens, {"nil", "Number"})
+            i = i + 2
+        elseif c:match("[%a_]") then
+            local j = i
+            while j <= #line and line:sub(j, j):match("[%w_]") do
+                j = j + 1
+            end
+            table.insert(tokens, {line:sub(i, j - 1), "Word"})
+            i = j - 1
+        else
+            table.insert(tokens, {c, "Operator"})
+        end
+        i = i + 1
+    end
+    return tokens
+end
+
+local function detectType(tokens, index)
+    local token = tokens[index]
+    local val, typ = token[1], token[2]
+    
+    if typ ~= "Word" then return typ end
+    
+    if Keywords[val] then return "Keyword" end
+    if BuiltIns[val] then return "BuiltIn" end
+    if SpecialMethods[val] then return "LocalMethod" end
+    
+    if index > 1 and tokens[index - 1][1] == "." then return "LocalProperty" end
+    if index > 1 and tokens[index - 1][1] == ":" then return "LocalMethod" end
+    
+    if val == "self" then return "Self" end
+    if val == "true" or val == "false" then return "Bool" end
+    if val == "nil" then return "Nil" end
+    if index > 1 and tokens[index - 1][1] == "function" then return "FunctionName" end
+    
+    return "Text"
+end
+
+local function colorToHex(c)
+    return string.format("#%02x%02x%02x", 
+        math.floor(c.R * 255), 
+        math.floor(c.G * 255), 
+        math.floor(c.B * 255)
+    )
+end
+
+local function highlightLine(line)
+    local tokens = tokenize(line)
+    local out = ""
+    for i, token in ipairs(tokens) do
+        local ttype = detectType(tokens, i)
+        local color = SyntaxColors[ttype] or SyntaxColors.Text
+        out = out .. string.format(
+            '<font color="%s">%s</font>',
+            colorToHex(color),
+            token[1]:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        )
+    end
+    return out
+end
+
+local function updateEditorHighlight()
+    for _, c in ipairs(highlightContainer:GetChildren()) do
+        c:Destroy()
+    end
+
+    local text = editorBox.Text or ""
+    local lines = {}
+    local longestLen = 0
+    
+    for line in text:gmatch("([^\n]*)\n?") do
+        table.insert(lines, line)
+        if #line > longestLen then longestLen = #line end
+    end
+
+    local lineHeight = 18
+    local yOffset = 0
+    local charWidth = 7
+    local contentWidth = math.max(200, editorScroll.AbsoluteSize.X - 20)
+    contentWidth = math.max(contentWidth, longestLen * charWidth + 50)
+
+    for i, line in ipairs(lines) do
+        local leadingSpaces = string.match(line, "^%s*")
+        local indentCount = leadingSpaces and math.floor(#leadingSpaces / 4) or 0
+        
+        local isBlockStarter = line:match("%f[%w]function%f[%W]") 
+                            or line:match("%f[%w]if%f[%W]") 
+                            or line:match("%f[%w]for%f[%W]") 
+                            or line:match("%f[%w]while%f[%W]") 
+                            or line:match("%f[%w]do%f[%W]")
+                            or line:match("%f[%w]repeat%f[%W]")
+
+        for level = 1, indentCount do
+            local indentX = (level * 24) - 12
+            
+            local indentLine = Instance.new("Frame")
+            indentLine.Size = UDim2.new(0, 1, 0, lineHeight)
+            indentLine.Position = UDim2.new(0, indentX, 0, yOffset)
+            indentLine.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+            indentLine.BorderSizePixel = 0
+            indentLine.ZIndex = 1
+            indentLine.Parent = highlightContainer
+
+            if isBlockStarter and level == indentCount then
+                local blockIndicator = Instance.new("TextLabel")
+                blockIndicator.Size = UDim2.new(0, 14, 0, lineHeight)
+                blockIndicator.Position = UDim2.new(0, indentX - 7, 0, yOffset)
+                blockIndicator.BackgroundTransparency = 1
+                blockIndicator.Text = "▶"
+                blockIndicator.TextColor3 = colors.textGray
+                blockIndicator.TextSize = 8
+                blockIndicator.FontFace = customFont
+                blockIndicator.ZIndex = 2
+                blockIndicator.Parent = highlightContainer
+            end
+        end
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(0, contentWidth, 0, lineHeight)
+        lbl.Position = UDim2.new(0, 0, 0, yOffset)
+        lbl.BackgroundTransparency = 1
+        lbl.Font = Enum.Font.Code
+        lbl.TextSize = 12
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.TextYAlignment = Enum.TextYAlignment.Top
+        lbl.RichText = true
+        lbl.TextWrapped = false
+        lbl.Text = highlightLine(line)
+        lbl.ZIndex = 2
+        lbl.Parent = highlightContainer
+
+        yOffset = yOffset + lineHeight
+    end
+
+    local buffer = {}
+    for i = 1, #lines do buffer[#buffer+1] = tostring(i) end
+    lineNums.Text = table.concat(buffer, "\n")
+    
+    local requiredHeight = math.max(yOffset, editorMainContainer.AbsoluteSize.Y)
+    editorBox.Size = UDim2.new(0, contentWidth, 0, requiredHeight)
+    editorScroll.CanvasSize = UDim2.new(0, contentWidth, 0, requiredHeight)
+end
+
+editorBox:GetPropertyChangedSignal("Text"):Connect(updateEditorHighlight)
+
+editorScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+    lineNums.Position = UDim2.new(0, 0, 0, -editorScroll.CanvasPosition.Y)
+end)
+
+task.defer(updateEditorHighlight)
+
+----------------------------------------------------------------
+-- 6. BUTTONS & FUNCTIONALITY CONNECTIONS (Incluyendo la lógica del Botón de Consola)
+----------------------------------------------------------------
+if actionButtons["Execute"] then
+    actionButtons["Execute"].MouseButton1Click:Connect(function()
+        local success, result = pcall(function()
+            return loadstring(editorBox.Text)()
+        end)
+        if not success then
+            warn("VectorCode Error: " + tostring(result))
+        end
+    end)
+end
+
+if actionButtons["Copy"] then
+    actionButtons["Copy"].MouseButton1Click:Connect(function()
+        pcall(function() setclipboard(editorBox.Text) end)
+    end)
+end
+
+if actionButtons["Clear"] then
+    actionButtons["Clear"].MouseButton1Click:Connect(function()
+        editorBox.Text = ""
+    end)
+end
+
+if actionButtons["FileBrowser"] then
+    actionButtons["FileBrowser"].MouseButton1Click:Connect(function()
+        local existingFB = playerGui:FindFirstChild("FileBrowser")
+        if existingFB then
+            existingFB.Enabled = not existingFB.Enabled
+        else
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/UltramixSecondDev/FileBrowser/main/Explorer.lua"))()
+            end)
+        end
+    end)
+end
+
+if actionButtons["Console"] then
+    actionButtons["Console"].MouseButton1Click:Connect(function()
+        local existingOutputUI = playerGui:FindFirstChild("VectorOutput")
+        if existingOutputUI then
+            existingOutputUI:Destroy()
+        else
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/UltramixSecondDev/VConsole/refs/heads/main/Output.lua"))()
+            end)
+        end
+    end)
+end
+
+explorerLogo.MouseButton1Click:Connect(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Dex-plus-plus-46438"))()
+    end)
+end)
+
+local minimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local targetSize = minimized and UDim2.new(0, 950, 0, 30) or UDim2.new(0, 950, 0, 520)
+    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(mainFrame, tweenInfo, {Size = targetSize})
+    tween:Play()
+    leftPanel.Visible = not minimized
+    editorMainContainer.Visible = not minimized
+    menuBar.Visible = not minimized
+    toolBar.Visible = not minimized
+end)
+
+----------------------------------------------------------------
+-- MENUBAR LOGIC
+----------------------------------------------------------------
+local currentDropdown = nil
+
+local function closeDropdown()
+    if currentDropdown and currentDropdown.Parent then
+        currentDropdown:Destroy()
+        currentDropdown = nil
+    end
+end
+
+local menuData = {
+    File = {
+        {"Load Clipboard", function() 
+            local success, clip = pcall(function() return getclipboard() end)
+            if success and clip then editorBox.Text = clip end
+        end},
+        {"Cut", function() 
+            pcall(function() setclipboard(editorBox.Text) end)
+            editorBox.Text = ""
+        end},
+        {"Save Script Bytecode", function()
+            if activeTargetScript and (activeTargetScript:IsA("LocalScript") or activeTargetScript:IsA("ModuleScript") or activeTargetScript:IsA("Script")) then
+                pcall(function()
+                    local bytecode = getscriptbytecode(activeTargetScript)
+                    local fileName = activeTargetScript.Name .. ".lua"
+                    writefile(fileName, bytecode)
+                    print("VectorCode: Script bytecode saved as " .. fileName)
+                end)
+            else
+                warn("VectorCode: Select a valid script in the explorer first.")
+            end
+        end},
+        {"CopyPath", function()
+            if activeTargetScript then
+                pcall(function()
+                    setclipboard(activeTargetScript:GetFullName())
+                    print("VectorCode: Path copied -> " .. activeTargetScript:GetFullName())
+                end)
+            else
+                warn("VectorCode: No instance selected.")
+            end
+        end}
+    },
+    Home = {
+        {"Destroy GUI", function()
+            pcall(function()
+                if gui and gui.Parent then gui:Destroy() end
+                if player and player:FindFirstChild("PlayerGui") then
+                    local fileBrowser = player.PlayerGui:FindFirstChild("FileBrowser")
+                    if fileBrowser then fileBrowser:Destroy() end
+                    
+                    -- Asegurar que VectorOutput exista antes de destruirla al limpiar el IDE completo
+                    local vectorOutput = player.PlayerGui:FindFirstChild("VectorOutput")
+                    if vectorOutput then vectorOutput:Destroy() end
+                end
+            end)
+        end}
+    },
+    View = {
+        {"MultiSelect: " .. (multiSelectEnabled and "[ON]" or "[OFF]"), function(btnRef)
+            multiSelectEnabled = not multiSelectEnabled
+            btnRef.Text = "  MultiSelect: " .. (multiSelectEnabled and "[ON]" or "[OFF]")
+            if not multiSelectEnabled then
+                selectedScriptsForExport = {}
+                updateSelectionHighlight()
+            end
+        end},
+        {"Export Select", function()
+            if not multiSelectEnabled then return end
+            if #selectedScriptsForExport > 0 then
+                for _, scr in ipairs(selectedScriptsForExport) do
+                    pcall(function()
+                        if scr:IsA("LuaSourceContainer") then
+                            local code = decompile(scr)
+                            writefile(scr.Name .. "_exported.lua", code)
+                        end
+                    end)
+                end
+            end
+        end}
+    },
+    Tools = {
+        {"Instance Counter", function()
+            local total = #game:GetDescendants()
+            print("VectorCode Info -> Total game instances: " .. total)
+        end},
+        {"Open Dex++ Explorer", function()
+            pcall(function() loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Dex-plus-plus-46438"))() end)
+        end}
+    }
+}
+
+for _, child in ipairs(menuBar:GetChildren()) do
+    if child:IsA("TextButton") then
+        local menuName = child.Text
+        child.MouseButton1Click:Connect(function()
+            if currentDropdown and currentDropdown.Parent == child then
+                closeDropdown()
+                return
+            end
+            closeDropdown()
+            local options = menuData[menuName]
+            if not options then return end
+            
+            local dropdown = Instance.new("Frame", child)
+            dropdown.Size = UDim2.new(0, 180, 0, #options * 24 + 6)
+            dropdown.Position = UDim2.new(0, 0, 1, 2)
+            dropdown.BackgroundColor3 = colors.bgSub
+            dropdown.BorderSizePixel = 1
+            dropdown.BorderColor3 = colors.border
+            dropdown.ZIndex = 10
+            currentDropdown = dropdown
+            
+            local dropLayout = Instance.new("UIListLayout", dropdown)
+            dropLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            
+            for _, opt in ipairs(options) do
+                local optBtn = Instance.new("TextButton", dropdown)
+                optBtn.Size = UDim2.new(1, 0, 0, 24)
+                optBtn.BackgroundTransparency = 1
+                optBtn.Text = "  " .. opt[1]
+                optBtn.TextColor3 = colors.textWhite
+                optBtn.FontFace = customFont
+                optBtn.TextSize = 11
+                optBtn.TextXAlignment = Enum.TextXAlignment.Left
+                optBtn.ZIndex = 11
+                
+                optBtn.MouseButton1Click:Connect(function()
+                    opt[2](optBtn)
+                    if menuName ~= "View" or opt[1]:find("Export Select") then
+                        closeDropdown()
+                    end
+                end)
+            end
+        end)
+    end
+end
